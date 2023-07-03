@@ -1,4 +1,5 @@
 import { IUser } from 'types/types';
+import { User } from '../models/User';
 import { readDB, updateDB } from './dbHelpers';
 
 class DB {
@@ -9,6 +10,16 @@ class DB {
   async getUser(id: string) {
     const users = await readDB();
     return users.find((user) => user.id === id);
+  }
+
+  async createUser(data: Omit<IUser, 'id'>) {
+    const createdUser = new User(data);
+    const users = await readDB();
+
+    users.push(createdUser);
+    await updateDB(users);
+
+    return createdUser;
   }
 
   async updateUser(id: string, data: Partial<Omit<IUser, 'id'>>) {

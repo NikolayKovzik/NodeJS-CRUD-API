@@ -15,4 +15,6 @@ export enum HttpStatusCodes {
 export enum ErrorMessages {
   UNSUPPORTED_METHOD = 'HTTP method is not supported',
   SERVER_ERROR = 'Internal Server Error',
+  INVALID_ID = 'Provided id is not a valid id (uuid)',
+  INVALID_DATA = 'User data has incorrect format',
 }
