@@ -4,7 +4,7 @@ import fs from 'fs';
 import { IUser } from '../types/types';
 
 export const getDB = () => {
-  return join(dirname(__dirname), 'libs', 'db.json');
+  return join(dirname(__dirname), 'database', 'db.json');
 };
 
 export const readDB = async () => {
