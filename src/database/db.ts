@@ -1,4 +1,4 @@
-import { IUser } from 'types/types';
+import { IUser } from '../types/types';
 import { User } from '../models/User';
 import { readDB, updateDB } from './dbHelpers';
 
@@ -33,6 +33,14 @@ class DB {
     } else {
       return null;
     }
+  }
+
+  async deleteUser(id: string) {
+    const users = await readDB();
+    const deletedUser = users.find((user) => user.id === id);
+    const updatedUsersList = users.filter((user) => user.id !== id);
+    await updateDB(updatedUsersList);
+    return deletedUser;
   }
 }
 

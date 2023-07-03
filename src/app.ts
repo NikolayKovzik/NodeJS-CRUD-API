@@ -10,38 +10,49 @@ class App {
     this.db = db;
   }
 
-  async requestHandler(req: http.IncomingMessage, res: http.ServerResponse) {
-    try {
-      res.setHeader('Content-Type', 'application/json');
+  async getUsers(res: http.ServerResponse) {
+    const users = await this.db.getUsers();
+    sendResponse(res, HttpStatusCodes.OK, users);
+  }
 
-      const url = req.url;
+  async getUser(id: string, res: http.ServerResponse) {
+    const isValidId = validateUuid(id);
 
-      if (url && !url.startsWith(BASE_URL) && !/\/api\/users/.test(url)) {
-        sendResponse(res, HttpStatusCodes.NOT_FOUND, { error: `${url} path does not exist` });
-        return;
+    if (isValidId) {
+      const user = await this.db.getUser(id);
+      if (user) {
+        sendResponse(res, HttpStatusCodes.OK, user);
+      } else {
+        sendResponse(res, HttpStatusCodes.NOT_FOUND, {
+          error: `User with id ${id} not found`,
+        });
       }
-
-      switch (req.method) {
-        case 'GET':
-          await this.getReqHandler(req, res);
-          break;
-        case 'POST':
-          await this.postReqHandler(req, res);
-          break;
-        case 'PUT':
-          await this.putReqHandler(req, res);
-          break;
-        default:
-          sendResponse(res, HttpStatusCodes.NOT_SUPPORTED, {
-            error: ErrorMessages.UNSUPPORTED_METHOD,
-          });
-      }
-    } catch (error) {
-      configDB.end();
-      sendResponse(res, HttpStatusCodes.INTERNAL_SERVER_ERROR, {
-        error: ErrorMessages.SERVER_ERROR,
+    } else {
+      sendResponse(res, HttpStatusCodes.BAD_REQUEST, {
+        error: ErrorMessages.INVALID_ID,
       });
     }
+  }
+
+  async updateUser(req: http.IncomingMessage, res: http.ServerResponse, id: string) {
+    let data: string = '';
+
+    req.on('data', (dataChunk) => {
+      data += dataChunk;
+    });
+
+    req.on('end', async () => {
+      const body = JSON.parse(data);
+      const updatedUser = await this.db.updateUser(id, body);
+
+      if (updatedUser) {
+        sendResponse(res, HttpStatusCodes.OK, updatedUser);
+      } else {
+        sendResponse(res, HttpStatusCodes.NOT_FOUND, {
+          error: `User with id ${id} not found`,
+        });
+      }
+    });
   }
 
   async getReqHandler(req: http.IncomingMessage, res: http.ServerResponse) {
@@ -51,22 +62,6 @@ class App {
       await this.getUser(id, res);
     } else {
       await this.getUsers(res);
-    }
-  }
-
-  async getUsers(res: http.ServerResponse) {
-    const users = await this.db.getUsers();
-    sendResponse(res, HttpStatusCodes.OK, users);
-  }
-
-  async getUser(id: string, res: http.ServerResponse) {
-    const user = await this.db.getUser(id);
-    if (user) {
-      sendResponse(res, HttpStatusCodes.OK, user);
-    } else {
-      sendResponse(res, HttpStatusCodes.NOT_FOUND, {
-        error: `User with id ${id} not found`,
-      });
     }
   }
 
@@ -110,31 +105,75 @@ class App {
     }
   }
 
-  async updateUser(req: http.IncomingMessage, res: http.ServerResponse, id: string) {
-    let data: string = '';
-
-    req.on('data', (dataChunk) => {
-      data += dataChunk;
-    });
-
-    req.on('end', async () => {
-      const body = JSON.parse(data);
-      const updatedUser = await this.db.updateUser(id, body);
-
-      if (updatedUser) {
-        sendResponse(res, HttpStatusCodes.OK, updatedUser);
-      } else {
-        sendResponse(res, HttpStatusCodes.NOT_FOUND, {
-          error: `User with id ${id} not found`,
-        });
-      }
-    });
-  }
-
-  parseRequest(url: string) {
+  parseRequest (url: string) {
     const userId = url.replace('/api/users', '');
     return userId.length > 1 ? userId.slice(1) : null;
   };
+
+  async deleteReqHandler(req: http.IncomingMessage, res: http.ServerResponse) {
+    const id = req.url ? this.parseRequest(req.url) : null;
+
+    if (id) {
+      const isValidId = validateUuid(id);
+
+      if (isValidId) {
+        const deletedUser = await this.db.deleteUser(id);
+
+        if (deletedUser) {
+          sendResponse(res, HttpStatusCodes.NO_CONTENT, {
+            message: ErrorMessages.DELETED_USER,
+          });
+        } else {
+          sendResponse(res, HttpStatusCodes.NOT_FOUND, {
+            error: `User with id ${id} does not exist`,
+          });
+        }
+      } else {
+        sendResponse(res, HttpStatusCodes.BAD_REQUEST, {
+          error: ErrorMessages.INVALID_ID,
+        });
+      }
+    } else {
+      sendResponse(res, HttpStatusCodes.NOT_FOUND, { error: ErrorMessages.NO_USER_ID });
+    }
+  }
+
+  async requestHandler(req: http.IncomingMessage, res: http.ServerResponse) {
+    try {
+      res.setHeader('Content-Type', 'application/json');
+
+      const url = req.url;
+
+      if (url && !url.startsWith(BASE_URL) && !/\/api\/users/.test(url)) {
+        sendResponse(res, HttpStatusCodes.NOT_FOUND, { error: `${url} path does not exist` });
+        return;
+      }
+
+      switch (req.method) {
+        case 'GET':
+          await this.getReqHandler(req, res);
+          break;
+        case 'POST':
+          await this.postReqHandler(req, res);
+          break;
+        case 'PUT':
+          await this.putReqHandler(req, res);
+          break;
+        case 'DELETE':
+          await this.deleteReqHandler(req, res);
+          break;
+        default:
+          sendResponse(res, HttpStatusCodes.NOT_SUPPORTED, {
+            error: ErrorMessages.UNSUPPORTED_METHOD,
+          });
+      }
+    } catch (error) {
+      configDB.end();
+      sendResponse(res, HttpStatusCodes.INTERNAL_SERVER_ERROR, {
+        error: ErrorMessages.SERVER_ERROR,
+      });
+    }
+  }
 }
 
 export default App;
