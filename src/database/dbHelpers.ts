@@ -13,6 +13,11 @@ export const readDB = async () => {
   return JSON.parse(data) as IUser[];
 };
 
+export const updateDB = async (data: IUser[]) => {
+  const dbPath = getDB();
+  await fsp.writeFile(dbPath, JSON.stringify(data));
+};
+
 export const configDB = {
   dbPath: getDB(),
   start() {
